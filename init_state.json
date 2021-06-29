@@ -1,0 +1,27 @@
+{
+    "cash": 500,
+    "companies": [
+        "Google",
+        "Facebook",
+        "VacuumLabs",
+        "Apple",
+        "Microsoft",
+        "Triangel",
+        "Palmyra",
+        "Brloh",
+        "Opavia",
+        "Krtko Travel",
+        "Kruzilas Automotive",
+        "Samsung",
+        "Kozel",
+        "BMW",
+        "Dacia",
+        "SPV ltd."
+    ],
+    "users":{
+        "user1": "pass1",
+        "user2": "pass2",
+        "user3": "pass3",
+        "user4": "pass4"
+    }
+}
