@@ -4,6 +4,7 @@ from dash.dependencies import Input, Output, State
 
 import pandas as pd
 import dash_design_kit as ddk
+import dash_table
 from dash.exceptions import PreventUpdate
 from pandas.core.algorithms import mode
 import plotly.express as px
@@ -36,12 +37,12 @@ def serve_layout(logged_in=False, user=None, token=None):
                 ddk.CardHeader('Stav konta'),
                 html.Label('Hotovosť na účte'),
                 html.H1(
-                    '{:.3f}'.format(utils.rds_get_user_cash(app.rds, user, token)) +'$',
+                    '{:.3f}'.format(utils.rds_get_user_cash(app.rds, user, token)) +'₹',
                     id='value-h1',
                     style={'text-align': 'center', 'margin-top': '20px', 'margin-bottom': '20px'}
                 ),
                 html.Label('Vlastnené akcie'),
-                ddk.DataTable(
+                dash_table.DataTable(
                     id='owned-table',
                     **get_owned_df(user, token)
                 )
@@ -133,8 +134,8 @@ def get_owned_df(user, token):
 
     columns_list = [{'name': owned_df.columns[0], 'id': owned_df.columns[0]}]
     columns_list += [{'name': x, 'id': x, 'type': 'numeric', 'format': {'specifier': '.2f'}} for x in owned_df.columns[1:]]
-    
-    return {'columns': columns_list, 'data': owned_df.to_dict('records')}    
+
+    return {'columns': columns_list, 'data': owned_df.to_dict('records')}
 
 
 def get_portfolio_graph(user, token):

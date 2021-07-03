@@ -14,6 +14,7 @@ import page_main
 import page_trading
 import page_login
 import db_utils as utils
+from theme import theme
 
 
 def serve_layout():
@@ -25,19 +26,21 @@ def serve_layout():
         html.Div('', id='fake-output', style={'display': 'none'}),
         html.Div(0, id='local-last-row', style={'display': 'none'}),
 
-        ddk.App([
-            ddk.Header([
-                ddk.Logo(src='assets/logo.jpg'),
-                ddk.Title('Wellz Faargo Brokers'),
-                ddk.Menu([
-                    dcc.Link('Vývoj cien', href='/'),
-                    dcc.Link('Obchodovanie', href='/trading'),
-                    dcc.Link('Prihlásenie', href='/login', id='login-link-name')
+        ddk.App(
+            [
+                ddk.Header([
+                    ddk.Logo(src='assets/logo.png'),
+                    ddk.Title('Wellz Faargo Brokers'),
+                    ddk.Menu([
+                        dcc.Link('Vývoj cien', href='/'),
+                        dcc.Link('Obchodovanie', href='/trading'),
+                        dcc.Link('Prihlásenie', href='/login', id='login-link-name')
+                    ]),
                 ]),
-            ]),
-            html.Div(id='page-content')
-        ],
-        show_editor=True
+                html.Div(id='page-content')
+            ],
+            show_editor=False,
+            theme=theme
         )
     ])
 

@@ -1,11 +1,20 @@
+import os
+import signal
 import argparse
 import json
 from datetime import datetime
-from subprocess import Popen, CREATE_NEW_CONSOLE
 import redis
 import numpy as np
 import pandas as pd
 from state_updater import iterate_prices
+import db_utils as utils
+
+import platform
+is_linux = platform.system() == 'Linux'
+
+from subprocess import Popen
+if not is_linux:
+    from subprocess import CREATE_NEW_CONSOLE
 
 WAITRESS_THREADS = 8
 
@@ -30,13 +39,12 @@ prs_run.add_argument('-web', action='store_true', help='Start Dash web app in se
 prs_run.add_argument('-game', action='store_true', help='Start stock price generation and user value logging')
 prs_run.set_defaults(action='run')
 
-# prs_run = subparsers.add_parser('', help='Run game component')
-# prs_run.add_argument('-db', action='store_true', help='Start Redis server in separate console')
-# prs_run.add_argument('-web', action='store_true', help='Start Dash web app in separate console')
-# prs_run.add_argument('-game', action='store_true', help='Start stock price generation and user value logging')
-# prs_run.set_defaults(action='run')
+prs_effect = subparsers.add_parser('effect', help='Perform an effect on running game')
+prs_effect.add_argument('-invest', type=int, help='Give all players specified amount of cash')
+prs_effect.set_defaults(action='effect')
 
 prs_stop = subparsers.add_parser('stop', help='Stop game component if it is running')
+prs_stop.add_argument('-db', action='store_true', help='Stop Redis server')
 prs_stop.add_argument('-web', action='store_true', help='Stop Dash web app and close its console')
 prs_stop.add_argument('-game', action='store_true', help='Stop stock price generation and user value logging')
 prs_stop.set_defaults(action='stop')
@@ -53,6 +61,10 @@ except Exception:
     print('could not connect to the db')
     print('if not running then "run -db"')
     rds = None
+
+web_pid = None
+updater_pid = None
+db_pid = None
 
 while(True):
 
@@ -91,22 +103,61 @@ while(True):
         
         elif args.action == 'run':
 
+            if is_linux:
+                popen_kwargs = dict(stdin=None, stdout=None, stderr=None, shell=True, close_fds=True)
+                shell_prefix = ''
+            else:
+                popen_kwargs = dict(creationflags=CREATE_NEW_CONSOLE, stdin=None, stdout=None, stderr=None)
+                shell_prefix = 'cmd /k'
+
             if args.web:
-                PROC_WEB = Popen('cmd /k conda activate dash && waitress-serve \
+                web_pid = Popen(shell_prefix + ' conda activate dash && waitress-serve \
                                  --threads='+str(WAITRESS_THREADS)+' --listen=*:8050 index:dash_app.server',
-                                 creationflags=CREATE_NEW_CONSOLE, stdin=None, stdout=None, stderr=None)
+                                 **popen_kwargs).pid
             if args.game:
-                PROC_UPDATER = Popen('cmd /k conda activate dash && python state_updater.py',
-                                      creationflags=CREATE_NEW_CONSOLE, stdin=None, stdout=None, stderr=None)
+                updater_pid = Popen(shell_prefix + ' conda activate dash && python state_updater.py', **popen_kwargs).pid
             
             if args.db:
-                PROC_DB = Popen('cmd /k cd redis && redis-server.exe',
-                                creationflags=CREATE_NEW_CONSOLE, stdin=None, stdout=None, stderr=None)
+                if is_linux:
+                    db_pid = Popen(shell_prefix + ' cd redis && ./src/redis-server', **popen_kwargs).pid
+                else:
+                    db_pid = Popen(shell_prefix + ' cd redis && redis-server.exe', **popen_kwargs).pid
                 rds = redis.Redis()
 
+
         elif args.action == 'stop' or args.action == 'exit':
-            print('stopping not implemented yet, close the terminals manually instead')
-            break
+
+            if args.web or args.action == 'exit':
+                if web_pid is not None:
+                    os.kill(web_pid, signal.SIGTERM)
+                    web_pid = None
+
+            if args.game or args.action == 'exit':
+                if updater_pid is not None:
+                    os.kill(updater_pid, signal.SIGTERM)
+                    updater_pid = None
+
+            if args.db or args.action == 'exit':
+                if db_pid is not None:
+                    os.kill(db_pid, signal.SIGTERM)
+                    db_pid = None
+
+
+        elif args.action == 'effect':
+
+            if rds is None:
+                print('no db connection, cannot perform')
+                continue
+            
+            if args.invest is not None:
+
+                print('investing', args.invest, 'into all user accounts')
+                users = [x.decode('utf-8') for x in rds.keys('cash_*')]
+                users = [x[5:] for x in users]
+                for user in users:
+                    user_cash = utils.rds_get_user_cash(rds, user)
+                    rds.set('cash_' + user, user_cash + args.invest)
+
 
         elif args.action == 'init':
 
