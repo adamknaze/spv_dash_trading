@@ -16,7 +16,7 @@ from subprocess import Popen
 if not is_linux:
     from subprocess import CREATE_NEW_CONSOLE
 
-WAITRESS_THREADS = 8
+WAITRESS_THREADS = 16
 
 parser = argparse.ArgumentParser(description='Stock platform management console')
 subparsers = parser.add_subparsers(help='Select action')

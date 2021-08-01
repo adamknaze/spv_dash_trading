@@ -61,6 +61,27 @@ def rds_get_user_portfolio_df(rds, user, token):
     return pd.DataFrame(columns=['value'], data=balance_row, index=pd.to_datetime(timestamps))
 
 
+def rds_get_all_portfolios_df(rds):
+    
+    users = [x.decode('utf-8') for x in rds.keys('cash_*')]
+    users = [x[5:] for x in users]
+
+    values_df = None
+
+    for user in users:
+        balance_row = [float(x.decode('utf-8')) for x in rds.lrange('user_balance_' + user, 0, -1)]
+
+        if values_df is None:
+            timestamps = [x.decode('utf-8') for x in rds.lrange('balance_timestamps', 0, -1)]
+            if len(timestamps) > len(balance_row):
+                timestamps = timestamps[:len(balance_row)]
+            values_df = pd.DataFrame(columns=[user], data=balance_row, index=pd.to_datetime(timestamps))
+        else:
+            values_df[user] = balance_row
+
+    return values_df
+
+
 def rds_check_pass_generate_token(rds, user, passw):
 
     if not rds.exists('pass_' + user):
@@ -107,11 +128,18 @@ def rds_buy_shares(rds, user, company, share_cnt, price, token):
     if not rds_check_token(rds, user, token):
         return False
 
-    user_cash = rds_get_user_cash(rds, user, token)
-    if share_cnt * price > user_cash:
+    share_cnt = int(share_cnt)
+    if share_cnt <= 0:
         return False
 
-    rds.set('cash_' + user, user_cash - share_cnt * price)
+    trans_value = share_cnt * price
+    trans_value *= 1.01
+
+    user_cash = rds_get_user_cash(rds, user, token)    
+    if trans_value > user_cash:
+        return False
+
+    rds.set('cash_' + user, user_cash - trans_value)
     rds.incrby('shares_' + user + '_' + company, share_cnt)
     rds.sadd('companies_' + user, company)
     return True
@@ -122,6 +150,10 @@ def rds_sell_shares(rds, user, company, share_cnt, price, token):
     if not rds_check_token(rds, user, token):
         return False
 
+    share_cnt = int(share_cnt)
+    if share_cnt <= 0:
+        return False
+
     share_cnt_owned = rds.get('shares_' + user + '_' + company)
     if share_cnt_owned is None:
         return False
@@ -130,8 +162,11 @@ def rds_sell_shares(rds, user, company, share_cnt, price, token):
     if share_cnt_owned < share_cnt:
         return False
 
+    trans_value = share_cnt * price
+    trans_value *= 0.99
+
     user_cash = rds_get_user_cash(rds, user, token)
-    rds.set('cash_' + user, user_cash + share_cnt * price)
+    rds.set('cash_' + user, user_cash + trans_value)
     new_shares_cnt = rds.decrby('shares_' + user + '_' + company, share_cnt)
     if new_shares_cnt < 1:
         rds.srem('companies_' + user, company)

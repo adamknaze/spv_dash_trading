@@ -12,6 +12,7 @@ from app import dash_app
 import app
 import page_main
 import page_trading
+import page_values
 import page_login
 import db_utils as utils
 from theme import theme
@@ -93,6 +94,8 @@ def display_page(pathname):
         return page_trading.layout
     elif pathname == '/login':
         return page_login.layout
+    elif pathname == '/values':
+        return page_values.layout
     else:
         return page_main.layout
 

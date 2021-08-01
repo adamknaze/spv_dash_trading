@@ -48,7 +48,7 @@ def store_account_balances(rds, users, companies):
         rds.rpush('user_balance_' + user, str(user_value))
 
 
-def main_loop(update_freq=20):
+def main_loop(update_freq=60):
 
     rds = redis.Redis()
 
