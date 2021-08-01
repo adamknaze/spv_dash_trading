@@ -1,5 +1,5 @@
 /.vscode
 /env.txt
 /helper_scripts.py
-/redis
+/redis/*
 /__pycache__
